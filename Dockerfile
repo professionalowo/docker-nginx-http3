@@ -78,6 +78,7 @@ ARG CONFIG="\
 	"
 
 FROM alpine:3.20 AS base
+LABEL org.opencontainers.image.source=https://github.com/professionalowo/docker-nginx-http3
 
 ARG NGINX_VERSION
 ARG NGINX_COMMIT
