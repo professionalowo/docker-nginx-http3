@@ -67,8 +67,6 @@ ARG CONFIG="\
 		--with-stream_realip_module \
 		--with-stream_geoip_module=dynamic \
 		--with-http_slice_module \
-		--with-mail \
-		--with-mail_ssl_module \
 		--with-compat \
 		--with-file-aio \
 		--with-http_v2_module \
