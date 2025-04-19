@@ -10,9 +10,6 @@ ARG NGX_BROTLI_COMMIT=a71f9312c2deb28875acc7bacfdd5695a111aa53
 # https://github.com/google/boringssl
 #ARG BORINGSSL_COMMIT=fae0964b3d44e94ca2a2d21f86e61dabe683d130
 
-# https://github.com/nginx/njs/releases/tag/0.8.7
-ARG NJS_COMMIT=ba6b9e157ef472dbcac17e32c55f3227daa3103c
-
 # https://github.com/openresty/headers-more-nginx-module#installation
 # we want to have https://github.com/openresty/headers-more-nginx-module/commit/e536bc595d8b490dbc9cf5999ec48fca3f488632
 ARG HEADERS_MORE_VERSION=0.37
@@ -79,7 +76,6 @@ ARG CONFIG="\
 		--with-openssl-opt=enable-ktls \
 		--add-module=/usr/src/ngx_brotli \
 		--add-module=/usr/src/headers-more-nginx-module-$HEADERS_MORE_VERSION \
-		--add-module=/usr/src/njs/nginx \
 		--add-module=/usr/src/zstd \
 		--add-dynamic-module=/usr/src/ngx_http_geoip2_module \
 	"
@@ -90,7 +86,6 @@ ARG NGINX_VERSION
 ARG NGINX_COMMIT
 ARG NGX_BROTLI_COMMIT
 ARG HEADERS_MORE_VERSION
-ARG NJS_COMMIT
 ARG GEOIP2_VERSION
 ARG ZSTD_VERSION
 ARG NGINX_USER_UID
@@ -124,14 +119,6 @@ RUN \
 		libtool \
 	&& apk add --no-cache --virtual .geoip2-build-deps \
 		libmaxminddb-dev \
-	&& apk add --no-cache --virtual .njs-build-deps \
-		libedit-dev \
-		libxml2-dev \
-		libxslt-dev \
-		openssl-dev \
-		pcre-dev \
-		readline-dev \
-		zlib-dev \
 	&& apk add --no-cache --virtual .zstd-build-deps \
 		zstd-dev \
 	&& git config --global init.defaultBranch master
@@ -190,18 +177,6 @@ RUN \
   && make libquickjs.a \
   && echo "quickjs $(cat VERSION)"
 
-RUN \
-  echo "Cloning and configuring njs ..." \
-  && mkdir /usr/src/njs && cd /usr/src/njs \
-  && git init \
-  && git remote add origin https://github.com/nginx/njs.git \
-  && git fetch --depth 1 origin ${NJS_COMMIT} \
-  && git checkout -q FETCH_HEAD \
-  && ./configure  --cc-opt='-I /usr/src/quickjs' --ld-opt="-L /usr/src/quickjs" \
-  && make njs \
-  && mv /usr/src/njs/build/njs /usr/sbin/njs \
-  && echo "njs v$(njs -v)"
-
 # https://github.com/macbre/docker-nginx-http3/issues/152
 ARG CC_OPT='-g -O2 -flto=auto -ffat-lto-objects -flto=auto -ffat-lto-objects -I /usr/src/quickjs'
 ARG LD_OPT='-Wl,-Bsymbolic-functions -flto=auto -ffat-lto-objects -flto=auto -L /usr/src/quickjs'
@@ -230,7 +205,7 @@ RUN \
 	# be deleted completely, then move `envsubst` back.
 	&& apk add --no-cache --virtual .gettext gettext \
 	\
-	&& scanelf --needed --nobanner /usr/sbin/nginx /usr/sbin/njs /usr/lib/nginx/modules/*.so /usr/bin/envsubst \
+	&& scanelf --needed --nobanner /usr/sbin/nginx /usr/lib/nginx/modules/*.so /usr/bin/envsubst \
 			| awk '{ gsub(/,/, "\nso:", $2); print "so:" $2 }' \
 			| sort -u \
 			| xargs -r apk info --installed \
@@ -254,8 +229,6 @@ COPY --from=base /usr/local/lib/perl5/site_perl /usr/local/lib/perl5/site_perl
 COPY --from=base /usr/bin/envsubst /usr/local/bin/envsubst
 COPY --from=base /etc/ssl/dhparam.pem /etc/ssl/dhparam.pem
 
-COPY --from=base /usr/sbin/njs /usr/sbin/njs
-
 # hadolint ignore=SC2046
 RUN \
 	addgroup --gid $NGINX_GROUP_GID -S nginx \
@@ -274,9 +247,6 @@ COPY ssl_common.conf /etc/nginx/conf.d/ssl_common.conf
 
 # show env
 RUN env | sort
-
-# njs version
-RUN njs -v
 
 # test the configuration
 RUN nginx -V; nginx -t
